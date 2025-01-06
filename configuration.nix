@@ -1,24 +1,53 @@
 { config, lib, pkgs, modulesPath, ... }:
 
-{
+let
+  sshPort = 41298;
+  hostName = "nixos";
+  stateVersion = "24.05";
+  sshAuthorizedKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFNENHqsxWyb9JOsuK+Tj3eELtIUu17Mb1tSb6urTC88";
+in {
   imports = [ (modulesPath + "/profiles/qemu-guest.nix") ];
 
   boot.loader.grub.enable = true;
   boot.loader.grub.device = "/dev/sda";
 
-  networking.hostName = "nixos";
-  networking.networkmanager.enable = true;
+  system.stateVersion = stateVersion;
+
+  networking = {
+    inherit hostName;
+    networkmanager.enable = true;
+
+    firewall = {
+      enable = true;
+    };
+  };
 
   users.users.nixos = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
     openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFNENHqsxWyb9JOsuK+Tj3eELtIUu17Mb1tSb6urTC88"
+      sshAuthorizedKey
     ];
   };
 
-  services.openssh.enable = true;
-  system.stateVersion = "24.05";
+  services.openssh = {
+    enable = true;
+    ports = [ sshPort ];
+    openFirewall = true;
+    settings = {
+      X11Forwarding = false;
+      PermitRootLogin = "no";
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+    };
+  };
+
+  security.pam = {
+    sshAgentAuth = {
+      enable = true;
+      authorizedKeysFiles = [ "/etc/ssh/authorized_keys.d/%u" ];
+    };
+  };
 
   # Hardware configuration
 
